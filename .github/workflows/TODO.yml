@@ -21,7 +21,8 @@ jobs:
 
       - name: Cerca TODO nei file modificati e crea issue
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.MY_FINE_GRAINED_PAT }}
+
         run: |
           echo "📁 Recupero dei file modificati..."
           FILES=$(git diff --name-only "${{ github.event.before }}" "${{ github.sha }}")
