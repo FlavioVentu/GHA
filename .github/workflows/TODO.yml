@@ -1,4 +1,4 @@
-name: TODO → Issue (no duplicati)
+name: TODO → Issue (solo modifiche del push)
 
 on:
   push:
@@ -11,13 +11,15 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 2  # 👈 sufficiente per fare diff tra before e after
 
       - name: Install GitHub CLI
         run: |
           sudo apt-get update
           sudo apt-get install -y gh
 
-      - name: Cerca TODO nei file modificati e crea issue (evita duplicati)
+      - name: Cerca TODO nei file modificati e crea issue
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -38,7 +40,6 @@ jobs:
                 ISSUE_TITLE="📌 TODO in $FILE alla linea $LINE_NUM"
                 ISSUE_BODY="È stato trovato un TODO nel file \`$FILE\`, linea \`$LINE_NUM\`:\n\n> $TODO_TEXT\n\n> _Generato automaticamente da GitHub Actions._"
 
-                # Evita duplicati controllando se l'issue esiste già
                 EXISTING_ISSUE=$(gh issue list --state open --json title -q ".[] | select(.title == \"$ISSUE_TITLE\")")
 
                 if [ -z "$EXISTING_ISSUE" ]; then
