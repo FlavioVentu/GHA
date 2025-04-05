@@ -21,7 +21,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          FILES=$(git diff --name-only HEAD HEAD~1)
+          echo "📁 Recupero dei file modificati..."
+          FILES=$(git diff --name-only "${{ github.event.before }}" "${{ github.sha }}")
 
           if [ -z "$FILES" ]; then
             echo "🛑 Nessun file modificato. Nessuna azione da intraprendere."
@@ -30,23 +31,27 @@ jobs:
 
           for FILE in $FILES; do
             if file "$FILE" | grep -q text; then
+              echo "🔍 Analizzo $FILE"
               grep -n "TODO:" "$FILE" | while IFS= read -r line; do
                 LINE_NUM=$(echo "$line" | cut -d: -f1)
                 TODO_TEXT=$(echo "$line" | cut -d: -f2- | sed 's/^ *//')
-                ISSUE_TITLE="📌 TODO trovato in $FILE, linea $LINE_NUM"
-                ISSUE_BODY="È stato trovato un TODO nel file \`$FILE\`, linea \`$LINE_NUM\`:\n\n> $TODO_TEXT\n\n> Generato automaticamente da GitHub Actions."
+                ISSUE_TITLE="📌 TODO in $FILE alla linea $LINE_NUM"
+                ISSUE_BODY="È stato trovato un TODO nel file \`$FILE\`, linea \`$LINE_NUM\`:\n\n> $TODO_TEXT\n\n> _Generato automaticamente da GitHub Actions._"
 
+                # Evita duplicati controllando se l'issue esiste già
                 EXISTING_ISSUE=$(gh issue list --state open --json title -q ".[] | select(.title == \"$ISSUE_TITLE\")")
 
                 if [ -z "$EXISTING_ISSUE" ]; then
-                  echo "➕ Creazione nuova issue: $ISSUE_TITLE"
+                  echo "➕ Creo nuova issue: $ISSUE_TITLE"
                   gh issue create \
                     --title "$ISSUE_TITLE" \
                     --body "$ISSUE_BODY" \
                     --label "todo"
                 else
-                  echo "🛑 Issue già esistente: $ISSUE_TITLE"
+                  echo "⚠️ Issue già esistente: $ISSUE_TITLE"
                 fi
               done
+            else
+              echo "⏭️ File non testuale ignorato: $FILE"
             fi
           done
