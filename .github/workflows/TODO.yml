@@ -1,4 +1,4 @@
-name: Convert TODO to Issues from Modified Files (with Duplicate Check)
+name: TODO → Issue (no duplicati)
 
 on:
   push:
@@ -9,45 +9,43 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - uses: cli/cli-action@v2
+      - name: Install GitHub CLI
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gh
+
+      - name: Autentica gh CLI
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "$GH_TOKEN" | gh auth login --with-token
 
       - name: Cerca TODO nei file modificati e crea issue (evita duplicati)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "🔍 Cercando TODO nei file modificati..."
-
-          # Ottieni i file modificati nell'ultimo commit
-          FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }})
+          FILES=$(git diff --name-only HEAD HEAD~1)
 
           if [ -z "$FILES" ]; then
             echo "🛑 Nessun file modificato. Nessuna azione da intraprendere."
             exit 0
           fi
 
-          echo "📂 File modificati: $FILES"
-
           for FILE in $FILES; do
-            # Verifica se il file è un file di testo (ignoriamo binari)
             if file "$FILE" | grep -q text; then
-              echo "🔍 Cercando TODO in $FILE"
-
-              # Cerca TODO in ogni file modificato
               grep -n "TODO:" "$FILE" | while IFS= read -r line; do
                 LINE_NUM=$(echo "$line" | cut -d: -f1)
                 TODO_TEXT=$(echo "$line" | cut -d: -f2- | sed 's/^ *//')
-
-                # Titolo dell'issue basato su file e linea per evitare duplicati
                 ISSUE_TITLE="📌 TODO trovato in $FILE, linea $LINE_NUM"
                 ISSUE_BODY="È stato trovato un TODO nel file \`$FILE\`, linea \`$LINE_NUM\`:\n\n> $TODO_TEXT\n\n> Generato automaticamente da GitHub Actions."
 
-                # Verifica se esiste già un'issue con lo stesso titolo
                 EXISTING_ISSUE=$(gh issue list --state open --json title -q ".[] | select(.title == \"$ISSUE_TITLE\")")
 
                 if [ -z "$EXISTING_ISSUE" ]; then
-                  echo "➕ Creando nuova issue per: $FILE:$LINE_NUM"
+                  echo "➕ Creazione nuova issue: $ISSUE_TITLE"
                   gh issue create \
                     --title "$ISSUE_TITLE" \
                     --body "$ISSUE_BODY" \
